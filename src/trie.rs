@@ -123,13 +123,11 @@ impl<T> Xfast<T> {
         }
         map_list
     }
-
-    fn find_successor(&self, key: usize) -> Option<&TrieNode<T>> {
+    fn find_lowest_common_ancestor(&self, key: usize) -> Option<*mut TrieNode<T>> {
         let mut low = 0;
         let mut high = self.nr_levels;
-        let mut successor_node: Option<*mut TrieNode<T>> = None;
-        
-        // find the lowest common ancestor- a node which shares maximum common prefix with the key
+        let mut ancestor_node: Option<*mut TrieNode<T>> = None;
+
         while high >= low {
             let mid = (low + high)/2;
             let prefix = key >> (self.nr_levels - mid);
@@ -137,7 +135,7 @@ impl<T> Xfast<T> {
             match self.level_maps[mid].get(&prefix) {
                 Some(&value) => {
                     low = mid + 1;
-                    successor_node = Some(value.as_ptr());
+                    ancestor_node = Some(value.as_ptr());
                 }
                 None => {
                     // prevent out of bound subtraction of a usize
@@ -148,7 +146,12 @@ impl<T> Xfast<T> {
                 }
             }
         }
+        ancestor_node
+    }
 
+    fn find_successor(&self, key: usize) -> Option<&TrieNode<T>> {
+        // find the lowest common ancestor- a node which shares maximum common prefix with the key
+        let mut successor_node: Option<*mut TrieNode<T>> = self.find_lowest_common_ancestor(key);
         match successor_node {
             Some(mut node) => unsafe {
                 // successor of a key already present is the key itself
@@ -187,31 +190,8 @@ impl<T> Xfast<T> {
     }
 
     fn find_predecessor(&self, key: usize) -> Option<&TrieNode<T>> {
-        let mut low = 0;
-        let mut high = self.nr_levels;
-        let mut predecessor_node: Option<*mut TrieNode<T>> = None;
-        
         // find the lowest common ancestor- a node which shares maximum common prefix with the key
-        while high >= low {
-            let mid = (low + high)/2;
-            let prefix = key >> (self.nr_levels - mid);
-            //check the presence of an internal node with the keyed as `prefix` in hashmap at the `mid` level 
-            match self.level_maps[mid].get(&prefix) {
-                Some(&value) => {
-                    println!("mid{}", mid);
-                    low = mid+1;
-                    predecessor_node = Some(value.as_ptr());
-                }
-                None => {
-                    // prevent out of bound subtraction of a usize
-                    if mid == 0 {
-                        break;
-                    }
-                    high = mid-1;
-                }
-            }
-        }
-
+        let mut predecessor_node: Option<*mut TrieNode<T>> = self.find_lowest_common_ancestor(key);
         match predecessor_node {
             Some(mut node) => unsafe {
                 // predecessor of a key already present is the key itself
