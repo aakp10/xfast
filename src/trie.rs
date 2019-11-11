@@ -123,4 +123,68 @@ impl<T> Xfast<T> {
         }
         map_list
     }
+
+    fn find_successor(&self, key: usize) -> Option<&TrieNode<T>> {
+        let mut low = 0;
+        let mut high = self.nr_levels;
+        let mut successor_node: Option<*mut TrieNode<T>> = None;
+        
+        // find the lowest common ancestor- a node which shares maximum common prefix with the key
+        while high >= low {
+            let mid = (low + high)/2;
+            let prefix = key >> (self.nr_levels - mid);
+            //check the presence of an internal node with the keyed as `prefix` in hashmap at the `mid` level 
+            match self.level_maps[mid].get(&prefix) {
+                Some(&value) => {
+                    low = mid + 1;
+                    successor_node = Some(value.as_ptr());
+                }
+                None => {
+                    // prevent out of bound subtraction of a usize
+                    if mid == 0 {
+                        break;
+                    }
+                    high = mid - 1;
+                }
+            }
+        }
+
+        match successor_node {
+            Some(mut node) => unsafe {
+                // successor of a key already present is the key itself
+                if (*node).level == (self.nr_levels) {
+                    return Some(&(*node));
+                }
+
+                //right subtree of an internal node can have the successor
+                if (key >> (self.nr_levels - (*node).level -1 ) & 1) != 0 {
+                    (*node).right.map(|right_node| {
+                        node = right_node.as_ptr();
+                    });
+                }
+                else {
+                    //left subtree of the internal node has the successor
+                    (*node).left.map(|left_node| {
+                        node = left_node.as_ptr();
+                    });
+                }
+                
+                /**
+                 * in case the key of the successor node (leaf node) above calculated has lower key than the currently searched key
+                 * navigate using the right and left pointer of the leaf node to find the smallest node which has a key >= the key being searched
+                 */
+                if (*node).key < key {
+                    let mut temp_node = None;
+                    (*node).right.map(|right_node| {
+                        temp_node = Some(&(*right_node.as_ptr()));
+                    });
+                    return temp_node;
+                }
+                return Some(&(*node));
+            }
+            None => {
+                return None;
+            }
+        }
+    }
 }
