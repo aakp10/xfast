@@ -168,11 +168,9 @@ impl<T> Xfast<T> {
                         node = left_node.as_ptr();
                     });
                 }
-                
-                /**
-                 * in case the key of the successor node (leaf node) above calculated has lower key than the currently searched key
-                 * navigate using the right and left pointer of the leaf node to find the smallest node which has a key >= the key being searched
-                 */
+                                
+                // in case the key of the successor node (leaf node) above calculated has lower key than the currently searched key
+                // navigate using the right and left pointer of the leaf node to find the smallest node which has a key >= the key being searched
                 if (*node).key < key {
                     let mut temp_node = None;
                     (*node).right.map(|right_node| {
@@ -187,4 +185,64 @@ impl<T> Xfast<T> {
             }
         }
     }
+
+    fn find_predecessor(&self, key: usize) -> Option<&TrieNode<T>> {
+        let mut low = 0;
+        let mut high = self.nr_levels;
+        let mut predecessor_node: Option<*mut TrieNode<T>> = None;
+        
+        // find the lowest common ancestor- a node which shares maximum common prefix with the key
+        while high >= low {
+            let mid = (low + high)/2;
+            let prefix = key >> (self.nr_levels - mid);
+            //check the presence of an internal node with the keyed as `prefix` in hashmap at the `mid` level 
+            match self.level_maps[mid].get(&prefix) {
+                Some(&value) => {
+                    println!("mid{}", mid);
+                    low = mid+1;
+                    predecessor_node = Some(value.as_ptr());
+                }
+                None => {
+                    // prevent out of bound subtraction of a usize
+                    if mid == 0 {
+                        break;
+                    }
+                    high = mid-1;
+                }
+            }
+        }
+
+        match predecessor_node {
+            Some(mut node) => unsafe {
+                // predecessor of a key already present is the key itself
+                if (*node).level == (self.nr_levels) {
+                    return Some(&(*node));
+                }
+
+                if (key>>(self.nr_levels - (*node).level -1) &1) != 0 {
+                    (*node).right.map(|right_node| {
+                        node = right_node.as_ptr();
+                    });
+                }
+                else {
+                    (*node).left.map(|left_node| {
+                        node = left_node.as_ptr();
+                    });
+                }
+
+                if (*node).key > key {
+                    let mut temp_node = None;
+                    (*node).left.map(|left_node| {
+                        temp_node = Some(&(*left_node.as_ptr()));
+                    });
+                    return temp_node;
+                }
+                return Some(&(*node));
+            }
+            None => {
+                return None;
+            }
+        }
+    }
+
 }
