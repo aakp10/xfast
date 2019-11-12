@@ -123,6 +123,7 @@ impl<T> Xfast<T> {
         }
         map_list
     }
+
     fn find_lowest_common_ancestor(&self, key: usize) -> Option<*mut TrieNode<T>> {
         let mut low = 0;
         let mut high = self.nr_levels;
@@ -372,9 +373,87 @@ impl<T> Xfast<T> {
         self.update_descendant_ptr(key);
     }
 
-    pub fn find_key(&self, key: usize) -> Option<&TrieNode<T>> {
-        self.level_maps[self.nr_levels].get(&key).map(|&value| unsafe{
-            &(*value.as_ptr())
+    fn delete_internal_node(&mut self, key: usize) {
+        let mut level = self.nr_levels-1;
+        let mut prefix = key;
+        let mut child_prefix = key;
+
+        while level > 0 {
+            prefix = prefix >> 1;
+            if let Some(internal_node) = self.level_maps[level].get(&prefix) {
+                unsafe {
+                    //check if it has a descendant node
+                    if (child_prefix &1) == 1 {
+                        //check left node
+                        if !(*internal_node.as_ptr()).is_desc_left {
+                            break;
+                        }
+                    }
+                    else if !(*internal_node.as_ptr()).is_desc_right {
+                            break;
+                    }
+                }
+            }
+                    
+            let parent_prefix = prefix >> 1;
+            self.level_maps[level-1].get(&parent_prefix).map(|parent_node| unsafe{
+                //node present in right subtree
+                if (prefix & 1) != 0 {
+                    (*parent_node.as_ptr()).right = None;
+                    (*parent_node.as_ptr()).is_desc_right = true;
+                }
+                else {
+                    (*parent_node.as_ptr()).left = None;
+                    (*parent_node.as_ptr()).is_desc_left = true;
+                }
+            });
+            self.level_maps[level].remove(&prefix);
+            child_prefix = child_prefix>>1;
+            level -= 1;
+        }
+    }
+
+    pub fn delete_key(&mut self, key: usize) -> Option<Node<T>>{
+        //find the key in the lowest level
+        let deleted_node = self.find_key(key);
+        if deleted_node.is_none() {
+            return None;
+        }
+
+        let deleted_node = deleted_node.unwrap();
+        
+        self.level_maps[self.nr_levels-1].get(&(key>>1)).map(|internal_node| unsafe{
+            if (key &1) == 1 {
+                (*internal_node.as_ptr()).right = None;
+                (*internal_node.as_ptr()).is_desc_right = true;
+            }
+            else {
+                (*internal_node.as_ptr()).left = None;
+                (*internal_node.as_ptr()).is_desc_left = true;
+            }
+        });
+        
+        self.delete_internal_node(key);
+        unsafe {
+            let predecessor_node = (*deleted_node.as_ptr()).left;
+            let successor_node = (*deleted_node.as_ptr()).right;
+            
+            if !predecessor_node.is_none() {
+                (*predecessor_node.unwrap().as_ptr()).right = successor_node;
+            }
+            if !successor_node.is_none() {
+
+                (*successor_node.unwrap().as_ptr()).left = predecessor_node;
+            }
+        }
+        let deleted_node = self.level_maps[self.nr_levels].remove(&key);
+        self.update_descendant_ptr(key);
+        deleted_node
+    }
+
+    pub fn find_key(&self, key: usize) -> Option<Node<T>> {
+        self.level_maps[self.nr_levels].get(&key).map(|&value| {
+            value
         })
     }
 }
@@ -385,7 +464,7 @@ mod test{
     fn init()  -> Xfast<String> {
         let mut test_trie: Xfast<String> = Xfast::new(31);
         test_trie.insert_key(11, String::from("eleven"));
-        //test_trie.insert_key(1, String::from("one"));
+        test_trie.insert_key(1, String::from("one"));
         test_trie.insert_key(18, String::from("eighteen"));
         test_trie.insert_key(5, String::from("five"));
         test_trie
@@ -427,7 +506,7 @@ mod test{
     #[test]
     fn none_predecessor() -> Result<(), String> {
         let test_trie = init();
-        if let None = test_trie.find_predecessor(1) {
+        if let None = test_trie.find_predecessor(0) {
             Ok(())
         }
         else {
@@ -439,18 +518,57 @@ mod test{
     fn find_key_present() -> Result<(), String> {
         let test_trie = init();
         if let Some(value) = test_trie.find_key(11) {
-            if value.key == 11 {
-                return Ok(());
+            unsafe {
+                if value.as_ref().key == 11 {
+                    return Ok(());
+                }
             }
         }
         Err(String::from("Key should have been present"))
     }
 
+    #[test]
     fn find_key_not_present() -> Result<(), String> {
         let test_trie = init();
         if let None = test_trie.find_key(7) {
             return Ok(());
         }
         Err(String::from("Key should not have been present"))
+    }
+
+    #[test]
+    fn delete_node() -> Result<(), String> {
+        let mut test_trie = init();
+        test_trie.delete_key(18);
+        if test_trie.find_key(18).is_none() {
+            Ok(())
+        }
+        else {
+            Err(String::from("Key should have been deleted"))
+        }   
+    }
+
+    #[test]
+    fn successor_after_del() -> Result<(), String> {
+        let mut test_trie = init();
+        test_trie.delete_key(18);
+        if let None = test_trie.find_successor(18) {
+            Ok(())
+        }
+        else {
+            Err(String::from("Successor of 18 is wrong"))
+        }
+    }
+
+    #[test]
+    fn predecessor_after_del() -> Result<(), String> {
+        let mut test_trie = init();
+        test_trie.delete_key(18);
+        if let Some(predecessor) = test_trie.find_predecessor(18) {
+            if predecessor.key == 11 {
+                return Ok(());
+            }
+        }
+        Err(String::from("Successor of 18 is wrong"))
     }
 }
