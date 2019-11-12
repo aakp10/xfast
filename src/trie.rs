@@ -484,7 +484,7 @@ mod test{
     #[test]
     fn none_successor() -> Result<(), String> {
         let test_trie = init();
-        if let None = test_trie.find_successor(19) {
+        if test_trie.find_successor(19).is_none() {
             Ok(())
         }
         else {
@@ -506,7 +506,7 @@ mod test{
     #[test]
     fn none_predecessor() -> Result<(), String> {
         let test_trie = init();
-        if let None = test_trie.find_predecessor(0) {
+        if test_trie.find_predecessor(0).is_none() {
             Ok(())
         }
         else {
@@ -530,7 +530,7 @@ mod test{
     #[test]
     fn find_key_not_present() -> Result<(), String> {
         let test_trie = init();
-        if let None = test_trie.find_key(7) {
+        if test_trie.find_key(7).is_none() {
             return Ok(());
         }
         Err(String::from("Key should not have been present"))
@@ -552,7 +552,7 @@ mod test{
     fn successor_after_del() -> Result<(), String> {
         let mut test_trie = init();
         test_trie.delete_key(18);
-        if let None = test_trie.find_successor(18) {
+        if test_trie.find_successor(18).is_none() {
             Ok(())
         }
         else {
@@ -570,5 +570,16 @@ mod test{
             }
         }
         Err(String::from("Successor of 18 is wrong"))
+    }
+
+    #[test]
+    fn deleting_non_existent() -> Result<(), String> {
+        let mut test_trie = init();
+        if test_trie.delete_key(19).is_none() {
+            Ok(())
+        }
+        else {
+            Err(String::from("The deleted node didn't exist!!"))
+        }
     }
 }
