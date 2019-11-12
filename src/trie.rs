@@ -149,80 +149,84 @@ impl<T> Xfast<T> {
         ancestor_node
     }
 
-    fn find_successor(&self, key: usize) -> Option<&TrieNode<T>> {
+    pub fn find_successor(&self, key: usize) -> Option<&TrieNode<T>> {
         // find the lowest common ancestor- a node which shares maximum common prefix with the key
         let successor_node: Option<*mut TrieNode<T>> = self.find_lowest_common_ancestor(key);
-        match successor_node {
-            Some(mut node) => unsafe {
+        if let Some(node) = successor_node {
+            unsafe {
                 // successor of a key already present is the key itself
                 if (*node).level == (self.nr_levels) {
                     return Some(&(*node));
                 }
 
                 //right subtree of an internal node can have the successor
+                let mut updated_node = None;
                 if (key >> (self.nr_levels - (*node).level -1 ) & 1) != 0 {
                     (*node).right.map(|right_node| {
-                        node = right_node.as_ptr();
+                        updated_node = Some(right_node.as_ptr());
                     });
                 }
                 else {
                     //left subtree of the internal node has the successor
                     (*node).left.map(|left_node| {
-                        node = left_node.as_ptr();
+                        updated_node = Some(left_node.as_ptr());
                     });
                 }
                                 
                 // in case the key of the successor node (leaf node) above calculated has lower key than the currently searched key
                 // navigate using the right and left pointer of the leaf node to find the smallest node which has a key >= the key being searched
-                if (*node).key < key {
+                if !updated_node.is_none() && (*updated_node.unwrap()).key < key {
                     let mut temp_node = None;
-                    (*node).right.map(|right_node| {
+                    (*updated_node.unwrap()).right.map(|right_node| {
                         temp_node = Some(&(*right_node.as_ptr()));
                     });
                     return temp_node;
                 }
-                return Some(&(*node));
-            }
-            None => {
+                if !updated_node.is_none() {
+                    return Some(&(*updated_node.unwrap()));
+                }
                 return None;
             }
         }
+        None
     }
 
-    fn find_predecessor(&self, key: usize) -> Option<&TrieNode<T>> {
+    pub fn find_predecessor(&self, key: usize) -> Option<&TrieNode<T>> {
         // find the lowest common ancestor- a node which shares maximum common prefix with the key
         let predecessor_node: Option<*mut TrieNode<T>> = self.find_lowest_common_ancestor(key);
-        match predecessor_node {
-            Some(mut node) => unsafe {
+        if let Some(node) = predecessor_node {
+            unsafe {
                 // predecessor of a key already present is the key itself
                 if (*node).level == (self.nr_levels) {
                     return Some(&(*node));
                 }
 
-                if (key>>(self.nr_levels - (*node).level -1) &1) != 0 {
+                let mut updated_node = None;
+                if (key >> (self.nr_levels - (*node).level -1) & 1) != 0 {
                     (*node).right.map(|right_node| {
-                        node = right_node.as_ptr();
+                        updated_node = Some(right_node.as_ptr());
                     });
                 }
                 else {
                     (*node).left.map(|left_node| {
-                        node = left_node.as_ptr();
+                        updated_node = Some(left_node.as_ptr());
                     });
                 }
 
-                if (*node).key > key {
+                if !updated_node.is_none() && (*updated_node.unwrap()).key > key {
                     let mut temp_node = None;
-                    (*node).left.map(|left_node| {
+                    (*updated_node.unwrap()).left.map(|left_node| {
                         temp_node = Some(&(*left_node.as_ptr()));
                     });
                     return temp_node;
                 }
-                return Some(&(*node));
-            }
-            None => {
+                if !updated_node.is_none() {
+                return Some(&(*updated_node.unwrap()));
+                }
                 return None;
+                }
             }
-        }
+        None
     }
 
     fn populate_internal_nodes(&mut self, key: usize) {
@@ -368,4 +372,85 @@ impl<T> Xfast<T> {
         self.update_descendant_ptr(key);
     }
 
+    pub fn find_key(&self, key: usize) -> Option<&TrieNode<T>> {
+        self.level_maps[self.nr_levels].get(&key).map(|&value| unsafe{
+            &(*value.as_ptr())
+        })
+    }
+}
+
+mod test{
+    use super::Xfast;
+
+    fn init()  -> Xfast<String> {
+        let mut test_trie: Xfast<String> = Xfast::new(31);
+        test_trie.insert_key(11, String::from("eleven"));
+        //test_trie.insert_key(1, String::from("one"));
+        test_trie.insert_key(18, String::from("eighteen"));
+        test_trie.insert_key(5, String::from("five"));
+        test_trie
+    }
+
+    #[test]
+    fn successor() -> Result<(), String> {
+        let test_trie = init();
+        if let Some(successor) = test_trie.find_successor(7) {
+            if successor.key == 11 {
+                return Ok(())
+            }
+        }
+        Err(String::from("Successor of 7 is wrong"))
+    }
+
+    #[test]
+    fn none_successor() -> Result<(), String> {
+        let test_trie = init();
+        if let None = test_trie.find_successor(19) {
+            Ok(())
+        }
+        else {
+            Err(String::from("Successor of 19 is wrong"))
+        }
+    }
+
+    #[test]
+    fn predecessor() -> Result<(), String> {
+        let test_trie = init();
+        if let Some(predecessor) = test_trie.find_predecessor(8) {
+            if predecessor.key == 5 {
+                return Ok(())
+            }
+        }
+        Err(String::from("Predecessor of 8 is wrong"))
+    }
+
+    #[test]
+    fn none_predecessor() -> Result<(), String> {
+        let test_trie = init();
+        if let None = test_trie.find_predecessor(1) {
+            Ok(())
+        }
+        else {
+            Err(String::from("Predecessor of 1 is wrong"))
+        }
+    }
+
+    #[test]
+    fn find_key_present() -> Result<(), String> {
+        let test_trie = init();
+        if let Some(value) = test_trie.find_key(11) {
+            if value.key == 11 {
+                return Ok(());
+            }
+        }
+        Err(String::from("Key should have been present"))
+    }
+
+    fn find_key_not_present() -> Result<(), String> {
+        let test_trie = init();
+        if let None = test_trie.find_key(7) {
+            return Ok(());
+        }
+        Err(String::from("Key should not have been present"))
+    }
 }
