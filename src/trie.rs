@@ -5,7 +5,7 @@ type Node<T> = NonNull<TrieNode<T>>;
 #[derive(Debug)]
 pub struct TrieNode<T> {
     key: usize,
-    value: Option<T>,
+    pub value: Option<T>,
     level: usize,
     right: Option<NonNull<TrieNode<T>>>,
     left: Option<NonNull<TrieNode<T>>>,
@@ -471,6 +471,21 @@ impl<T> Xfast<T> {
             index: 0,
         }
     }
+
+    pub fn iter_mut(&mut self) -> XfastIterMut<T> {
+        let leaf_map = &self.level_maps[self.nr_levels];
+        let mut keys: Vec<usize> = vec!();
+        
+        for &cur_key in leaf_map.keys() {
+            keys.push(cur_key);
+        }
+
+        XfastIterMut {
+            leaf_map,
+            keys,
+            index: 0,
+        }
+    }
 }
 
 pub struct XfastIter<'a, T> {
@@ -496,7 +511,31 @@ impl<'a, T> Iterator for XfastIter<'a, T> {
             None
         }
     }
+}
 
+pub struct XfastIterMut<'a, T> {
+    leaf_map: &'a HashMap<usize, Node<T>>,
+    keys: Vec<usize>,
+    index: usize,
+}
+
+impl<'a, T> Iterator for XfastIterMut<'a, T> {
+    type Item = (&'a usize, &'a mut TrieNode<T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.leaf_map.len() {
+            let key = self.keys[self.index];
+            self.index += 1;
+            let kv_pair = self.leaf_map.get_key_value(&key);
+            kv_pair.map(|(key, value)| unsafe{
+                let value = &mut (*value.as_ptr());
+                (key, value)
+            })
+        }
+        else {
+            None
+        }
+    }
 }
 
 impl<'a, T> IntoIterator for &'a Xfast<T> {
@@ -506,6 +545,8 @@ impl<'a, T> IntoIterator for &'a Xfast<T> {
         self.iter()
     }
 }
+
+
 
 mod test{
     use super::Xfast;
