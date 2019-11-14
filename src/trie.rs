@@ -13,12 +13,6 @@ pub struct TrieNode<T> {
     is_desc_right: bool,
 }
 
-#[derive(Debug)]
-pub struct Xfast<T=String> {
-    nr_levels: usize,
-    level_maps: Vec<HashMap<usize, NonNull<TrieNode<T>>>>,
-}
-
 impl<T> TrieNode<T> {
     
     pub fn new(key: usize, value: T, level: usize) -> Box<Self> {
@@ -87,16 +81,21 @@ impl<T> TrieNode<T> {
     }
 }
 
+#[derive(Debug)]
+pub struct Xfast<T=String> {
+    nr_levels: usize,
+    level_maps: Vec<HashMap<usize, NonNull<TrieNode<T>>>>,
+}
+
 impl<T> Xfast<T> {
     
     pub fn new(range: usize) -> Self {
-        let nr_levels = Xfast::<T>::get_levels_count(range);
-        let level_maps = Xfast::create_map_list(nr_levels+1);
+        let nr_levels = Self::get_levels_count(range);
+        let level_maps = Self::create_map_list(nr_levels+1);
         let mut new_trie = Xfast {
             nr_levels,
             level_maps,
         };
-
         // insert the root node in the trie at level 0
         let root_node = TrieNode::new_internal(0);
         let root_node = Box::into_raw_non_null(root_node);
@@ -116,12 +115,7 @@ impl<T> Xfast<T> {
 
     // helper fn for populating a vector list of hashmaps
     fn create_map_list(nr_levels: usize) -> Vec<HashMap<usize, Node<T>>> {
-        let mut map_list: Vec<HashMap<usize, Node<T>>> = Vec::new();
-        for _level in 0..nr_levels {
-            let level_hash: HashMap<usize, Node<T>> = HashMap::new();
-            map_list.push(level_hash);
-        }
-        map_list
+        (0..nr_levels).map(|_| HashMap::new()).collect()
     }
 
     fn find_lowest_common_ancestor(&self, key: usize) -> Option<*mut TrieNode<T>> {
