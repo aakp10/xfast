@@ -456,6 +456,47 @@ impl<T> Xfast<T> {
             value
         })
     }
+
+    pub fn iter(&self) -> XfastIter<T> {
+        let leaf_map = &self.level_maps[self.nr_levels];
+        let mut keys: Vec<usize> = vec!();
+        
+        for &cur_key in leaf_map.keys() {
+            keys.push(cur_key);
+        }
+
+        XfastIter {
+            leaf_map,
+            keys,
+            index: 0,
+        }
+    }
+}
+
+pub struct XfastIter<'a, T> {
+    leaf_map: &'a HashMap<usize, Node<T>>,
+    keys: Vec<usize>,
+    index: usize,
+}
+
+impl<'a, T> Iterator for XfastIter<'a, T> {
+    type Item = (&'a usize, &'a TrieNode<T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.leaf_map.len() {
+            let key = self.keys[self.index];
+            self.index += 1;
+            let kv_pair = self.leaf_map.get_key_value(&key);
+            kv_pair.map(|(key, value)| unsafe{
+                let value = value.as_ref();
+                (key, value)
+            })
+        }
+        else {
+            None
+        }
+    }
+
 }
 
 mod test{
