@@ -499,6 +499,14 @@ impl<'a, T> Iterator for XfastIter<'a, T> {
 
 }
 
+impl<'a, T> IntoIterator for &'a Xfast<T> {
+    type Item = (&'a usize, &'a TrieNode<T>);
+    type IntoIter = XfastIter<'a, T>;
+    fn into_iter(self) -> XfastIter<'a, T> {
+        self.iter()
+    }
+}
+
 mod test{
     use super::Xfast;
 
