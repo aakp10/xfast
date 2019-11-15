@@ -3,6 +3,8 @@
 #![feature(map_get_key_value)]
 
 //! [X-fast Trie](https://en.wikipedia.org/wiki/X-fast_trie) is a bitwise trie to store a bounded domain of integers.
+//!
+//! Currently this version of the crate is using the nightly release of rust.
 
 use std::collections::HashMap;
 use std::ptr::NonNull;
@@ -409,7 +411,6 @@ impl<T> Xfast<T> {
                 });
             }
             if is_right_descendant {
-                println!("editing root");
                 (*value.as_ptr()).left.map(|left_node| {
                     (*value.as_ptr()).right = TrieNode::get_rightmost_node(self.nr_levels, left_node.as_ptr());
                 });
