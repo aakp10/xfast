@@ -3,7 +3,14 @@ name = "xfast"
 version = "0.1.0"
 authors = ["Karuna Grewal <karunagrewal98@gmail.com>"]
 edition = "2018"
+description = "Xfast Trie- binary trie for storing integers"
+documentation = "https://docs.rs/xfast/"
+keywords = ["collection", "trie", "data-structure"]
+license = "MIT"
+repository = "https://github.com/aakp10/xfast"
 
+[lib]
+name = "xfast"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
