@@ -103,8 +103,7 @@ impl<T> TrieNode<T> {
 ///
 /// Each level of the trie is modelled as a hash map storing the trie nodes at that level.
 ///
-/// Depending on the range of the integers to be inserted, the levels in the trie are calculated and
-/// accordingly populated.
+/// The range of integers need to be specified while initializing a trie.
 /// # Examples
 /// ```
 ///     use xfast::Xfast;
@@ -279,11 +278,10 @@ impl<T> Xfast<T> {
     ///     test_trie.insert_key(5, "five");
     ///     assert_eq!(test_trie.len(), 3);
     ///        
-    ///     let predecessor_3 = test_trie.find_predecessor(3);
-    ///     predecessor_3.map(|predecessor| {
-    ///         let predecessor_value = predecessor.value.unwrap();
+    ///     if let Some(predecessor_3) = test_trie.find_predecessor(3) {
+    ///         let predecessor_value = predecessor_3.value.unwrap();
     ///         assert_eq!(predecessor_value, "one");
-    ///     });
+    ///     }
     ///
     ///     let predecessor_0 = test_trie.find_predecessor(0);
     ///         assert!(predecessor_0.is_none());
@@ -597,7 +595,19 @@ impl<T> Xfast<T> {
         })
     }
 
-    /// 
+    /// Returns an iterator around all the key-TrieNode pairs stored in the trie.
+    /// # Examples
+    /// ```
+    ///     use xfast::Xfast;
+    ///
+    ///     let mut test_trie: Xfast<&str> = Xfast::new(31);
+    ///     test_trie.insert_key(11, "eleven");
+    ///     test_trie.insert_key(1, "one");
+    ///     test_trie.insert_key(19, "nineteen");
+    ///     for (key, node) in test_trie.iter() {
+    ///         println!("key: {} value: {:?}", key, node);
+    ///     }
+    /// ```
     pub fn iter(&self) -> XfastIter<T> {
         let leaf_map = &self.level_maps[self.nr_levels];
         let mut keys: Vec<usize> = vec!();
@@ -613,6 +623,25 @@ impl<T> Xfast<T> {
         }
     }
 
+    /// Returns a mutable iterator around all the key-TrieNode pairs stored in the trie.
+    /// # Examples
+    /// ```
+    ///     use xfast::Xfast;
+    ///
+    ///     let mut test_trie: Xfast<&str> = Xfast::new(31);
+    ///     test_trie.insert_key(11, "eleven");
+    ///     test_trie.insert_key(1, "one");
+    ///     test_trie.insert_key(19, "nineteen");
+    ///     for (key, node) in test_trie.iter_mut() {
+    ///         if key % 2 == 1 {
+    ///             node.value = Some("updated_odd");    
+    ///         }
+    ///     }
+    ///
+    ///     if let Some(node_1) = test_trie.find_key(1) {
+    ///         assert_eq!(node_1.value.unwrap(), "updated_odd");
+    ///     }
+    /// ```
     pub fn iter_mut(&mut self) -> XfastIterMut<T> {
         let leaf_map = &self.level_maps[self.nr_levels];
         let mut keys: Vec<usize> = vec!();
@@ -628,6 +657,8 @@ impl<T> Xfast<T> {
         }
     }
 }
+
+/// Iterator around the Xfast key and value (TrieNode) pairs
 
 pub struct XfastIter<'a, T> {
     leaf_map: &'a HashMap<usize, Node<T>>,
@@ -654,6 +685,7 @@ impl<'a, T> Iterator for XfastIter<'a, T> {
     }
 }
 
+/// Mutable Iterator around the Xfast key and value (TrieNode) pairs
 pub struct XfastIterMut<'a, T> {
     leaf_map: &'a HashMap<usize, Node<T>>,
     keys: Vec<usize>,
